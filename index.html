@@ -1,0 +1,304 @@
+<html>
+	<head>
+		<title>ThreeGeoJSON Demo</title>
+                
+        <script src="lib/threeGeoJSON.js"></script>
+                
+        <!-- Three.js library, movement controls, and jquery for the geojson-->
+        <script src="lib/three.min.js"></script>
+        <script src="lib/DeviceOrientationControls.js"></script>  
+        <script src="lib/jquery-1.10.2.min.js"></script>
+        <script src="lib/DAT.GUI.min.js"></script>  
+        <script src="lib/sylvester.src.js"></script>  
+        <script type="text/javascript" src="lib/kalman.js"></script>
+    </head>
+	
+    <body>
+        <video autoplay="true" id="videoElement"></video>	
+        <canvas id="canvas2D" width="600" height="400"/>
+		<script type="text/JavaScript">
+        //New scene and camera
+        var plane_size = 63530;
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.up.set(0, 0, 1);
+        
+        var dummycamera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.1, 1000);
+        dummycamera.up.set(0, 0, 1);
+        
+        renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: true
+        });
+        
+        canvas2D = document.getElementById('canvas2D');
+        
+        renderer.setSize(640, 480);
+
+        document.body.appendChild(renderer.domElement);
+        
+        function positionCanvas(){
+            if(video) {
+                console.log('position canvas');
+                if(video.videoWidth < video.videoHeight){
+                    var calcul_dim = (window.innerWidth/ video.videoWidth) * video.videoHeight;
+                    renderer.setSize( window.innerWidth, calcul_dim, true );
+                    renderer.domElement.style.top = Math.ceil((window.innerHeight - calcul_dim) / 2.) + 'px' ;
+                    renderer.domElement.style.left = "0";
+                    canvas2D.style.top = Math.ceil((window.innerHeight - calcul_dim) / 2.) + 'px' ;
+                    canvas2D.style.left = "0";
+                } else {
+                    var calcul_dim = (window.innerHeight/ video.videoHeight) * video.videoWidth;
+                    renderer.setSize(calcul_dim, window.innerHeight, true );
+                    renderer.domElement.style.left = Math.ceil((window.innerWidth - calcul_dim) / 2.) + 'px' ;
+                    renderer.domElement.style.top = "0";
+                    canvas2D.style.left = Math.ceil((window.innerWidth - calcul_dim) / 2.) + 'px' ;
+                    canvas2D.style.top = "0";
+                }
+                camera.aspect = renderer.getSize().width / renderer.getSize().height;
+                camera.updateProjectionMatrix();
+                dummycamera.aspect = renderer.getSize().width / renderer.getSize().height;
+                dummycamera.updateProjectionMatrix();
+                renderer.domElement.style.position = "absolute";
+                renderer.domElement.style.zIndex = "100";
+                canvas2D.width = renderer.domElement.width; 
+                canvas2D.height = renderer.domElement.height;
+                canvas2D.style.position = "absolute";
+                canvas2D.style.zIndex = "101";
+            }
+        };
+        
+        positionCanvas();
+        
+        var drone = new THREE.Object3D();
+        drone.add(camera);
+        drone.add(dummycamera);
+        scene.add(new THREE.AmbientLight(0x555555));
+        
+        var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+        scene.add( directionalLight );
+
+        var geometry = new THREE.SphereGeometry(plane_size, 128, 128);
+        var material = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            opacity: 0.3,
+            transparent: true
+        });
+        var sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
+        var sphere2 = new THREE.Object3D();
+        sphere.add(sphere2);
+        sphere2.add(drone);
+
+        $.getJSON("cross.json", function(data) {
+            var line = drawThreeGeo(data, plane_size, 'sphere', {
+                color: 'rgba(255, 255, 0, 0.7)',
+                linewidth: 3
+            })
+        });
+        
+        var font;
+        var pois = [];
+        var beer_mat;
+        var beer_geom;
+        
+        var loader = new THREE.JSONLoader();
+        loader.load( "Beer-2.json", function(geometry, material){
+            beer_geom = geometry;
+            beer_mat = material;
+            loadData();
+        }); 
+    
+        function loadData(){
+            $.getJSON("restorani.json", function(data) {
+                var features = {
+                    "type": "FeatureCollection",
+                    "features": []};
+                var last_label;
+                data.results.bindings.forEach(function(a){
+                    if(a.p.value == "http://www.w3.org/2000/01/rdf-schema#label"){
+                        last_label = a.s.value;
+                    }
+                    if(a.p.value == 'http://www.opengis.net/ont/geosparql#asWKT'){
+                        console.log(a.s.value);
+                        var mts = a.s.value.match(/\((.*?)\)/ );
+                        var cords = mts[1].split(' ');
+                        var feature = 
+                        {
+                            "type": "Feature",
+                            "properties": {
+                                "name": last_label,
+                                "time": "2015-10-04T16:19:16Z"
+                            },
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [
+                                        cords[0],
+                                        cords[1],
+                                        0
+                                ]
+                            }
+                        }
+                        features.features.push(feature);
+                    }
+                });
+                drawThreeGeo(features, plane_size, 'sphere', new THREE.ParticleBasicMaterial({
+                    color: 0xFFFFFF,
+                    size: 1,
+                    map: THREE.ImageUtils.loadTexture(
+                        "northpole.png"
+                    ),
+                    blending: THREE.AdditiveBlending,
+                    transparent: true
+                }));
+            });
+        }
+        
+        var gui = new DAT.GUI();
+        gui.close();
+        var drone_pos = {
+            altitude: 0.02
+        };
+
+        function addDatGui() {
+            gui.add(camera, 'fov', 10, 150).step(1).listen().name('Fov').onChange(function(value) {camera.updateProjectionMatrix()});
+            //gui.add(camera.rotation, 'x', -Math.PI, 0).step(Math.PI / 180).listen().name('Pitch');
+            //gui.add(drone.rotation, 'y', -Math.PI * 2, 0).step(Math.PI / 180).listen().name('Yaw');
+            //gui.add(drone.rotation, 'z', -Math.PI / 2, Math.PI / 2).step(Math.PI / 360).listen().name('Roll');
+            gui.add(drone_pos, 'altitude', 0.0, 10).step(0.01).listen().name('Altitude').onChange(function(value) {
+                drone.position.y = plane_size + value
+            });
+
+            gui.add(sphere.rotation, 'y', -Math.PI, Math.PI).step(Math.PI / 360).listen().name('sphere y');
+            gui.add(sphere2.rotation, 'x', -Math.PI, Math.PI).step(Math.PI / 360).listen().name('sphere x');
+            gui.add(sphere.rotation, 'z', -Math.PI, Math.PI).step(Math.PI / 360).listen().name('sphere z');
+        }
+
+        var track = $.getJSON("track.json", function(data) {
+            var line = drawThreeGeo(data, plane_size, 'sphere', {
+                color: 'rgba(255, 0, 0, 0.6)',
+                linewidth: 2
+            })
+        });
+
+        drone.position.y = plane_size + drone_pos.altitude;
+        sphere2.rotation.x = (90.0 - 57.541904) / (180.0 / Math.PI);
+        sphere.rotation.y = 25.428729 / (180.0 / Math.PI);
+
+        addDatGui();
+        var controls = new THREE.DeviceOrientationControls(dummycamera);
+        controls.update();
+        camera.updateProjectionMatrix();
+
+        
+        ctx2d = canvas2D.getContext('2d');
+        
+        function render() {
+            controls.update();
+            dummycamera.rotation.x *= 1.2;
+            dummycamera.rotation.z *= 1.2;
+            ctx2d.clearRect (0, 0, canvas2D.width, canvas2D.height);
+            camera.quaternion.slerp( dummycamera.quaternion, 0.2);
+            camera.updateProjectionMatrix();
+            
+            pois.forEach(function(mesh){
+                var coord = toScreenXY(mesh.geometry.vertices[0], camera, renderer.domElement);
+                if (coord!=null) {
+                    var opacity = 1; //1.0 / (mesh.geometry.vertices[0].distanceTo( camera.position ) / 10000.0 - 4.0 );
+                    ctx2d.font="1.5em Helvetica";
+                    var size = ctx2d.measureText(mesh.props.name);
+                    ctx2d.save();
+                    ctx2d.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx2d.fillRect(coord.x - size.width / 2, coord.y - 50 , size.width, 40);
+                    ctx2d.fillStyle="rgba(0, 0, 0, "+opacity+")";
+                    ctx2d.strokeStyle = 'white';
+                    ctx2d.fillText(mesh.props.name, coord.x - size.width / 2, coord.y - 20);
+                    ctx2d.strokeText(mesh.props.name, coord.x - size.width / 2, coord.y - 20);
+                    ctx2d.restore();
+                }
+            });
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        }
+        
+        render();
+        var video = document.querySelector("#videoElement");
+            
+        function positionVideo(){
+            console.log('position video');
+            video.style.width = window.innerWidth + "px";
+            video.style.height = window.innerHeight + "px";
+            video.style.position = "absolute";
+            video.style.top = "0";
+            video.style.left = "0";
+        };
+        
+        
+        function toScreenXY(position, camera, canvas) {
+            var pos = position.clone();
+            var projScreenMat = new THREE.Matrix4();
+            projScreenMat.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+            pos.applyMatrix4(projScreenMat);
+            if(pos.z<1)
+                return { x: ( pos.x + 1 ) * canvas.width / 2,
+                    y: ( - pos.y + 1) * canvas.height / 2, z: pos.z };
+            else
+                return null;
+        }
+        
+        positionVideo();
+
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+
+        navigator.mediaDevices.enumerateDevices()
+            .then(function(devices) {
+                var found = false;
+                devices.forEach(function(device) {
+                    console.log(device.kind + ": " + device.label +
+                        " id = " + device.deviceId);
+
+                    if (device.label.indexOf('back') > 0 && navigator.getUserMedia) {
+                        if (!!window.stream) {
+                            videoElement.src = null;
+                            window.stream.stop();
+                        }
+                        found = true;
+                        navigator.getUserMedia({
+                            video: {
+                                optional: [{
+                                    sourceId: device.deviceId
+                                }]
+                            }
+                        }, handleVideo, videoError);
+                    }
+
+                });
+                if(!found)
+                    navigator.getUserMedia({video: true}, handleVideo, videoError);
+            })
+            .catch(function(err) {
+                console.log(err.name + ": " + error.message);
+            });
+
+
+        function handleVideo(stream) {
+            video.src = window.URL.createObjectURL(stream);
+            positionCanvas();
+        }
+
+        function videoError(e) {
+            // do something
+        }
+        
+        function repositionEverything(){
+            positionVideo();
+            positionCanvas();
+        }
+        
+        window.addEventListener("orientationchange", repositionEverything, false);
+        window.addEventListener("resize", repositionEverything, false);
+        setTimeout(repositionEverything, 3000);
+        
+		</script>
+	</body>
+</html>

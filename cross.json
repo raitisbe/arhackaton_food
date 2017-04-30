@@ -1,0 +1,36 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "2015-10-04-19-1",
+                "time": "2015-10-04T16:19:16Z"
+            },
+            "geometry": {
+                "type": "MultiLineString",
+                "coordinates": [[
+                    [
+                        25.426911,
+                        57.541252
+                    ],
+                    [
+                        25.429740,
+                        57.542894
+                    ]
+                ], 
+                
+                [
+                    [
+                        25.429464,
+                        57.541501
+                    ],
+                    [
+                        25.428687,
+                        57.542258
+                    ]
+                ] ]
+            }
+        }
+    ]
+}

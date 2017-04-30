@@ -1,0 +1,20 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "2015-10-04-19-1",
+                "time": "2015-10-04T16:19:16Z"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                        25.4226224,
+                        57.5603067,
+                        62.200000000000045
+                ]
+            }
+        }
+    ]
+}

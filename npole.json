@@ -1,0 +1,52 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "2015-10-04-19-1",
+                "time": "2015-10-04T16:19:16Z"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                        0,
+                        90,
+                        0
+                ]
+            }
+        },
+        
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "2015-10-04-19-1",
+                "time": "2015-10-04T16:19:16Z"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                        25.438316, 
+                        57.541191,
+                        0
+                ]
+            }
+        },
+        
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "2015-10-04-19-1",
+                "time": "2015-10-04T16:19:16Z"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                        25.398834, 
+                        57.540834,
+                        0
+                ]
+            }
+        }
+    ]
+}
