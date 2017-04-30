@@ -1,4 +1,4 @@
-##Food around me
+## Food around me
 
 ## Inspiration
 I wanted to make a 3D visualization of a point of interest database which was another project of mine. AR seemed a good way to do it.
