@@ -1,22 +1,40 @@
-## Food around me
+ThreeGeoJSON
+=======================
 
-## Inspiration
-I wanted to make a 3D visualization of a point of interest database which was another project of mine. AR seemed a good way to do it.
+This project aims to be a simple way to render geojson data in 3D with three.js.
 
-## What it does
-It shows restaurants or other points of interest around my location as an augmented reality overlay over a video from phones or tablets webcam. Also a previously prepared road network can be loaded from common geographic data file (geoJSON) and displayed over the video.
+###Demo
+http://jdomingu.github.io/ThreeGeoJSON/
 
-## How I built it
-Application was build completely using JavaScript and Three.Js. For parsing and converting GeoJSON data to 3D world coordinates https://github.com/jdomingu/ThreeGeoJSON library was used, which was modified to suit my needs - read properties of points not only coordinates, display the POIs as beer bottles instead of 2D particles etc.
+Note: To view the demo, ensure that your browser supports WebGL rendering.
 
-## Challenges I ran into
-Sensor readings where inconsistent between devices. Overlay of 3 layers needed to be made: video, threejs canvas, 2d canvas for point labels. Phone orientation changes and mapping phone rotation to 3D world needed to be made. Wobbly lines close to the user needed to be fixed, which was done partly using Kalman filter and camera smoothing.
+###Instructions
+Enter the following code to render a geoJSON file in 3D:
+```
+drawThreeGeo(json, radius, shape, {options});   
+```
+You can enter the following parameters: 
 
-## Accomplishments that I'm proud of
-It just runs which is accomplishment enough for me.
+| Parameter | Description |
+| ------------- | ----------- |
+| json | The variable that contains the geoJSON that you want to render. |
+| radius | The radius of the sphere that you want to render. |
+| shape | The 3D shape to use when rendering the geoJSON. Either 'sphere' or 'plane'. |
+| options | The threeJS options that you want to use to style the line or particle material. |
 
-## What I learned
-Implemented Kalman filter to correct the sensor values. 
+For example, you might enter:
+```
+drawThreeGeo(json, 10, 'sphere', {
+    color: 'green'
+}); 
+```
 
-## What's next for Food around me
-Make the location dynamically set from users phone GPS. More points of interest and more 
+###Important Note About Parsing geoJSON
+The demo uses the jquery $.getJSON method to pass the geoJSON to the drawThreeGeo function. You can only use this method if the geoJSON is hosted on a server that allows requests for json data. To test this code locally, complete the following steps: 
+
+1. Add ```var json =``` to the beginning of the geoJSON file that you want to display.
+2. Change the file extension of your geoJSON file to ```.js```.
+3. Add the ```json.js``` file to the head of your HTML page. For example, you might add the following line:
+```
+<script src="test_geojson/json.js"></script>
+```

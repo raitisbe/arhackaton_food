@@ -11,6 +11,7 @@
         <script src="lib/DAT.GUI.min.js"></script>  
         <script src="lib/sylvester.src.js"></script>  
         <script type="text/javascript" src="lib/kalman.js"></script>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
     </head>
 	
     <body>
@@ -20,10 +21,10 @@
         //New scene and camera
         var plane_size = 63530;
         var scene = new THREE.Scene();
-        var camera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var camera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.05, 50);
         camera.up.set(0, 0, 1);
         
-        var dummycamera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var dummycamera = new THREE.PerspectiveCamera(57, window.innerWidth / window.innerHeight, 0.05, 100);
         dummycamera.up.set(0, 0, 1);
         
         renderer = new THREE.WebGLRenderer({
@@ -75,6 +76,8 @@
         drone.add(dummycamera);
         scene.add(new THREE.AmbientLight(0x555555));
         
+        var droneshadow = new THREE.Mesh(new THREE.SphereGeometry(0.015, 32, 32, 0, Math.PI * 2, 0, Math.PI * 2), new THREE.MeshNormalMaterial());
+        
         var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
         scene.add( directionalLight );
 
@@ -89,11 +92,14 @@
         var sphere2 = new THREE.Object3D();
         sphere.add(sphere2);
         sphere2.add(drone);
+        sphere2.add(droneshadow);
 
         $.getJSON("cross.json", function(data) {
             var line = drawThreeGeo(data, plane_size, 'sphere', {
-                color: 'rgba(255, 255, 0, 0.7)',
-                linewidth: 3
+                color: 'rgba(255, 255, 0)',
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.5
             })
         });
         
@@ -106,11 +112,13 @@
         loader.load( "Beer-2.json", function(geometry, material){
             beer_geom = geometry;
             beer_mat = material;
-            loadData();
         }); 
     
-        function loadData(){
-            $.getJSON("restorani.json", function(data) {
+        function loadData(lon, lat, category){
+            var query = encodeURIComponent('SELECT ?o ?p ?s FROM <http://www.sdi4apps.eu/poi.rdf> FROM <http://www.sdi4apps.eu/poi_changes.rdf> FROM <http://www.sdi4apps.eu/poi_categories.rdf> WHERE { ?o <http://www.openvoc.eu/poi#class> ?sub. ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://gis.zcu.cz/SPOI/Ontology#'+category+'>. ?o <http://www.opengis.net/ont/geosparql#asWKT> ?geom. FILTER(isBlank(?geom) = false). FILTER(bif:st_intersects (?geom, bif:st_point (' + lon + ', ' + lat + '), 1.5)).	?o ?p ?s } ORDER BY ?o');
+            var query_url = encodeURIComponent('http://data.plan4all.eu/sparql_spoi?default-graph-uri=&query=' + query +'&should-sponge=&format=application%2Fsparql-results%2Bjson&timeout=0&debug=on');
+            $.getJSON("/cgi-bin/hsproxy.cgi?toEncoding=utf-8&url=" + query_url, function(data) {
+                points_loaded = true;
                 var features = {
                     "type": "FeatureCollection",
                     "features": []};
@@ -144,9 +152,9 @@
                 });
                 drawThreeGeo(features, plane_size, 'sphere', new THREE.ParticleBasicMaterial({
                     color: 0xFFFFFF,
-                    size: 1,
+                    size: 0.3,
                     map: THREE.ImageUtils.loadTexture(
-                        "northpole.png"
+                        "symbolsWaze/"+ category + ".png"
                     ),
                     blending: THREE.AdditiveBlending,
                     transparent: true
@@ -159,6 +167,7 @@
         var drone_pos = {
             altitude: 0.02
         };
+        droneshadow.scale.set(drone_pos.altitude, drone_pos.altitude, drone_pos.altitude);
 
         function addDatGui() {
             gui.add(camera, 'fov', 10, 150).step(1).listen().name('Fov').onChange(function(value) {camera.updateProjectionMatrix()});
@@ -176,15 +185,41 @@
 
         var track = $.getJSON("track.json", function(data) {
             var line = drawThreeGeo(data, plane_size, 'sphere', {
-                color: 'rgba(255, 0, 0, 0.6)',
+                color: 'rgba(255, 0, 0)',
+                transparent: true,
+                opacity: 0.6,
                 linewidth: 2
             })
         });
 
         drone.position.y = plane_size + drone_pos.altitude;
-        sphere2.rotation.x = (90.0 - 57.541904) / (180.0 / Math.PI);
-        sphere.rotation.y = 25.428729 / (180.0 / Math.PI);
+        droneshadow.position.y = plane_size;
+        
+        var points_loaded = false;
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition);
+            } else {
+                console.log('Geolocation not supported');
+            }
+        }
+        
+        function showPosition(position) {
+            console.log('got location: ', position);
+            if(!points_loaded){
+            var categories = ['food_and_drink', 'culture_and_entertainment', 'car_service'];
+                categories.forEach(function(category){
+                    loadData(position.coords.longitude, position.coords.latitude, category);
+                });
+            }
+            sphere2.rotation.x = (90.0 - position.coords.latitude) / (180.0 / Math.PI);
+            sphere.rotation.y = position.coords.longitude / (180.0 / Math.PI);
+            setTimeout(getLocation, 5000);
+        }
+        
+        getLocation();
 
+        
         addDatGui();
         var controls = new THREE.DeviceOrientationControls(dummycamera);
         controls.update();
@@ -193,27 +228,53 @@
         
         ctx2d = canvas2D.getContext('2d');
         
+        function sortByKey(array, key) {
+            return array.sort(function(a, b) {
+                var x = a[key]; var y = b[key];
+                return ((x > y) ? -1 : ((x < y) ? 1 : 0));
+            });
+        }
+        
         function render() {
             controls.update();
             dummycamera.rotation.x *= 1.2;
             dummycamera.rotation.z *= 1.2;
             ctx2d.clearRect (0, 0, canvas2D.width, canvas2D.height);
-            camera.quaternion.slerp( dummycamera.quaternion, 0.2);
+            camera.quaternion.slerp( dummycamera.quaternion, 0.4);
             camera.updateProjectionMatrix();
             
+            var pp = [];
             pois.forEach(function(mesh){
+                
                 var coord = toScreenXY(mesh.geometry.vertices[0], camera, renderer.domElement);
                 if (coord!=null) {
-                    var opacity = 1; //1.0 / (mesh.geometry.vertices[0].distanceTo( camera.position ) / 10000.0 - 4.0 );
-                    ctx2d.font="1.5em Helvetica";
+                    pp.push({point: mesh, z: coord.z});
+                }
+            });
+            sortByKey(pp, 'z');
+            
+            pp.forEach(function(p){
+                var mesh = p.point;
+                var coord = toScreenXY(mesh.geometry.vertices[0], camera, renderer.domElement);
+                if (coord!=null) {
+                    var opacity = (1 - coord.z) * 15; //1.0 / (mesh.geometry.vertices[0].distanceTo( camera.position ) / 10000.0 - 4.0 );
+                    ctx2d.font= '' + Math.ceil(opacity * 1.4) + "em Helvetica";
                     var size = ctx2d.measureText(mesh.props.name);
                     ctx2d.save();
-                    ctx2d.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    ctx2d.fillRect(coord.x - size.width / 2, coord.y - 50 , size.width, 40);
-                    ctx2d.fillStyle="rgba(0, 0, 0, "+opacity+")";
-                    ctx2d.strokeStyle = 'white';
-                    ctx2d.fillText(mesh.props.name, coord.x - size.width / 2, coord.y - 20);
-                    ctx2d.strokeText(mesh.props.name, coord.x - size.width / 2, coord.y - 20);
+                        /*
+                        ctx2d.save();
+                            ctx2d.translate(coord.x - size.width / 2, coord.y - opacity * 45);
+                            ctx2d.fillStyle = 'rgba(255, 255, 255, '+(opacity * 2)+')';
+                            ctx2d.fillRect(0, 0 , size.width, opacity * 34);
+                            ctx2d.fillStyle="rgba(0, 0, 0, "+(opacity*2)+")";
+                        ctx2d.restore();*/
+                        ctx2d.save();
+                            ctx2d.translate(coord.x - size.width / 2, coord.y - opacity * 45);
+                            ctx2d.fillStyle="rgba(0, 0, 0, "+(opacity*2)+")";
+                            ctx2d.strokeStyle =  'rgba(255, 255, 255, '+(opacity * 2 )+')';;
+                            ctx2d.fillText(mesh.props.name, 0, 0);
+                            ctx2d.strokeText(mesh.props.name, 0, 0);
+                        ctx2d.restore();
                     ctx2d.restore();
                 }
             });
