@@ -1,13 +1,10 @@
 <html>
 	<head>
 		<title>ThreeGeoJSON Demo</title>
-                
         <script src="lib/threeGeoJSON.js"></script>
-                
-        <!-- Three.js library, movement controls, and jquery for the geojson-->
-        <script src="lib/three.min.js"></script>
+        <script src="node_modules/three/build/three.min.js"></script>
         <script src="lib/DeviceOrientationControls.js"></script>  
-        <script src="lib/jquery-1.10.2.min.js"></script>
+        <script src="node_modules/jquery/dist/jquery.min.js"></script>
         <script src="lib/DAT.GUI.min.js"></script>  
         <script src="lib/sylvester.src.js"></script>  
         <script type="text/javascript" src="lib/kalman.js"></script>
@@ -105,14 +102,6 @@
         
         var font;
         var pois = [];
-        var beer_mat;
-        var beer_geom;
-        
-        var loader = new THREE.JSONLoader();
-        loader.load( "Beer-2.json", function(geometry, material){
-            beer_geom = geometry;
-            beer_mat = material;
-        }); 
     
         function loadData(lon, lat, category){
             var query = encodeURIComponent('SELECT ?o ?p ?s FROM <http://www.sdi4apps.eu/poi.rdf> FROM <http://www.sdi4apps.eu/poi_changes.rdf> FROM <http://www.sdi4apps.eu/poi_categories.rdf> WHERE { ?o <http://www.openvoc.eu/poi#class> ?sub. ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://gis.zcu.cz/SPOI/Ontology#'+category+'>. ?o <http://www.opengis.net/ont/geosparql#asWKT> ?geom. FILTER(isBlank(?geom) = false). FILTER(bif:st_intersects (?geom, bif:st_point (' + lon + ', ' + lat + '), 1.5)).	?o ?p ?s } ORDER BY ?o');
